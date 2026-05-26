@@ -18,7 +18,7 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
   
 
   try {
-     console.log('mail send started');
+     console.log('mail send started..................');
     await transporter.sendMail({
       from: 'team.robust.dev@gmail.com', // sender address
       to, // list of receivers
@@ -27,11 +27,12 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
       html, // html body
     });
     
+    console.log("mail sent successfully .............. ")
   } catch (error) {
     console.log('send mail error:', error);
     
   }
-  console.log('mail sended stopped');
+  console.log('mail sended stopped.....');
 };
 
 

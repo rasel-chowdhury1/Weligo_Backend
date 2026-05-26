@@ -103,7 +103,7 @@ const newUserJoinedEmail = async ({ fullName, email, role }: NewUserJoinedEmailP
 </body>
 </html>`;
 
-  await sendEmail('raseldevsta@gmail.com', '🎉 New User Joined Weligo', html);
+  await sendEmail('info@weligo.ch', '🎉 New User Joined Weligo', html);
 };
 
 export { otpSendEmail, newUserJoinedEmail };
