@@ -9,7 +9,7 @@ import QueryBuilder from '../../builder/QueryBuilder';
 import { otpServices } from '../otp/otp.service';
 import { generateOptAndExpireTime } from '../otp/otp.utils';
 import { TPurposeType } from '../otp/otp.interface';
-import { otpSendEmail } from '../../utils/eamilNotifiacation';
+import { newUserJoinedEmail, otpSendEmail } from '../../utils/eamilNotifiacation';
 import { createToken, verifyToken } from '../../utils/tokenManage';
 import Notification from '../notifications/notifications.model';
 
@@ -35,9 +35,9 @@ export interface RegisterUserPayload {
 const registerUser = async (payload: RegisterUserPayload) => {
   const { fullName, email, password, address, role } = payload;
 
-  const userExist = await userService.getUserByEmail(email);
+  const userExist = await User.findOne({ email, role });
   if (userExist) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'User already exists with this email');
+    throw new AppError(httpStatus.BAD_REQUEST, `User already registered as ${role} with this email`);
   }
 
   const user = await User.create({ fullName, email, password, address, role });
@@ -46,7 +46,9 @@ const registerUser = async (payload: RegisterUserPayload) => {
     throw new AppError(httpStatus.BAD_REQUEST, 'User creation failed');
   }
 
-
+  process.nextTick(async () => {
+    await newUserJoinedEmail({ fullName, email, role });
+  });
 
   const jwtPayload = {
     fullName: user.fullName,

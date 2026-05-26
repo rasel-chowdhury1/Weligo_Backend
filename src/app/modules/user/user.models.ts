@@ -12,7 +12,6 @@ const userSchema = new Schema<TUser>(
     email: {
       type: String,
       required: true,
-      unique: true,
     },
     password: {
       type: String,
@@ -126,5 +125,7 @@ userSchema.statics.isPasswordMatched = async function (
 ) {
   return await bcrypt.compare(plainTextPassword, hashedPassword);
 };
+
+userSchema.index({ email: 1, role: 1 }, { unique: true });
 
 export const User = model<TUser, UserModel>('User', userSchema);
