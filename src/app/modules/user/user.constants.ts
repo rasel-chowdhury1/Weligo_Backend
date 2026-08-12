@@ -1,7 +1,7 @@
 export const USER_ROLE = {
   ADMIN: 'admin',
-  SEEKER: 'seeker',
-  PLUSONE: 'plusone',
+  PROVIDER: 'provider',
+  FAMILY: 'family',
 } as const;
 
 export const gender = ['Male', 'Female', 'Others'] as const;

@@ -76,6 +76,8 @@ const fileUpload = (uploadDirectory: string) => {
       // console.log(req);
       if (file.fieldname === 'introVideo' || file.fieldname === 'video') {
         cb(null, './public/uploads/video');
+      } else if (file.fieldname === 'image') {
+        cb(null, './public/uploads/profile');
       } else {
         cb(null, uploadDirectory);
       }

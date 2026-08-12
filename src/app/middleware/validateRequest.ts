@@ -6,6 +6,8 @@ const validateRequest = (schema: AnyZodObject) => {
   return catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     await schema.parseAsync({
       body: req.body,
+      params: req.params,
+      query: req.query,
       files: req.files,
       file: req.file,
       cookies: req.cookies,

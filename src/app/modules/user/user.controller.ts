@@ -75,12 +75,38 @@ const getAllUsers = catchAsync(async (req, res) => {
   });
 });
 
+const getAllFamilies = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.getAllFamilies(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    meta: result.meta,
+    data: result.result,
+    message: 'Families fetched successfully',
+  });
+});
+
 const getUserById = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.getUserById(req.params.id);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'User fetched successfully',
+    data: result,
+  });
+});
+
+
+const getProviderDetails = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const result = await userService.getProviderDetails(id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Provider details retrieved successfully',
     data: result,
   });
 });
@@ -96,6 +122,16 @@ const getAdminProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const getMyProfile = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.getMyProfile(req?.user?.userId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'profile fetched successfully',
+    data: result,
+  });
+});
 
 const getAllUsersOverview = catchAsync(async (req, res) => {
   console.log("get all user overviewo _>>>> ");
@@ -143,6 +179,102 @@ const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const completeProviderProfile = catchAsync(async (req: Request, res: Response) => {
+  const files = req.files as
+    | { [fieldname: string]: Express.Multer.File[] }
+    | undefined;
+  const certificateFiles = files?.certificateFiles;
+  const certificates = req.body.certificates as
+    | { type: string; description?: string }[]
+    | undefined;
+
+  if (certificates?.length) {
+    req.body.certificates = certificates.map((certificate, index) => ({
+      ...certificate,
+      imgUrl: certificateFiles?.[index]
+        ? storeFile('certificates', certificateFiles[index].filename)
+        : '',
+    }));
+  }
+
+  if (files?.image?.[0]) {
+    req.body.profileImage = storeFile('profile', files.image[0].filename);
+  }
+
+  const result = await userService.completeProviderProfile(
+    req?.user?.userId,
+    req.body,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Provider profile updated successfully',
+    data: result,
+  });
+});
+
+const getPendingProviders = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.getPendingProviders(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    meta: result.meta,
+    data: result.result,
+    message: 'Pending providers fetched successfully',
+  });
+});
+
+const getTopRatedProviders = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.getTopRatedProviders(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    meta: result.meta,
+    data: result.result,
+    message: 'Top rated providers fetched successfully',
+  });
+});
+
+const searchProviders = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.searchProviders(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    meta: result.meta,
+    data: result.result,
+    message: 'Providers fetched successfully',
+  });
+});
+
+const approveProvider = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.approveProvider(req.params.id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Provider approved successfully',
+    data: result,
+  });
+});
+
+const rejectProvider = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.rejectProvider(
+    req.params.id,
+    req.body?.reason,
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Provider rejected successfully',
+    data: result,
+  });
+});
+
 const blockedUser = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.blockedUser(req.params.id);
   sendResponse(res, {
@@ -150,6 +282,42 @@ const blockedUser = catchAsync(async (req: Request, res: Response) => {
     success: true,
     message: `User ${result.status ? 'blocked': 'unBlocked'} successfully`,
     data: result.user,
+  });
+});
+
+const addFavoriteUser = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.addFavoriteUser(
+    req.user?.userId,
+    req.params.id,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'User added to favorites successfully',
+    data: result,
+  });
+});
+
+const removeFavoriteUser = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.removeFavoriteUser(
+    req.user?.userId,
+    req.params.id,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'User removed from favorites successfully',
+    data: result,
+  });
+});
+
+const getMyFavoriteUsers = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.getMyFavoriteUsers(req.user?.userId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Favorite users fetched successfully',
+    data: result,
   });
 });
 
@@ -169,10 +337,22 @@ export const userController = {
   userCreateVarification,
   completedProfile,
   getUserById,
+  getProviderDetails,
   getAdminProfile,
+  getMyProfile,
   updateMyProfile,
+  completeProviderProfile,
+  getPendingProviders,
+  getTopRatedProviders,
+  searchProviders,
+  approveProvider,
+  rejectProvider,
   blockedUser,
   deleteMyAccount,
   getAllUsers,
-  getAllUsersOverview
+  getAllFamilies,
+  getAllUsersOverview,
+  addFavoriteUser,
+  removeFavoriteUser,
+  getMyFavoriteUsers,
 };

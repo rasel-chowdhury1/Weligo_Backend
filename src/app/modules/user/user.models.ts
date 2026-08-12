@@ -5,6 +5,14 @@ import { TUser, UserModel } from './user.interface';
 
 const userSchema = new Schema<TUser>(
   {
+    firstName: {
+      type: String,
+      default: '',
+    },
+    lastName: {
+      type: String,
+      default: '',
+    },
     fullName: {
       type: String,
       default: '',
@@ -31,17 +39,86 @@ const userSchema = new Schema<TUser>(
       type: String,
       default: '',
     },
+    city: {
+      type: String,
+      default: '',
+    },
+    postalCode: {
+      type: String,
+      default: '',
+    },
     address: {
       type: String,
       default: ''
     },
-    about: {
+    referralSource: {
       type: String,
       default: '',
     },
     dateOfBirth: {
-      type: Date, // Added date of birth
-      required: false, // Optional field
+      type: Date,
+      default: ""
+    },
+    categoryId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Category',
+      default: null
+    },
+    category: {
+      type: String,
+      default: '',
+    },
+    hourlyRate: {
+      type: Number,
+      default: 0,
+    },
+    experience: {
+      type: Number,
+      default: 0,
+    },
+    lenguages: {
+      type: [String],
+      default: [],
+    },
+    totalReview: {
+      type: Number,
+      default: 0,
+    },
+    averageRating: {
+      type: Number,
+      default: 0,
+    },
+    providerProfileId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ProviderProfile',
+      default: null,
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: undefined,
+      },
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: function (this: { role: string }) {
+        return this.role === 'provider' ? 'pending' : 'approved';
+      },
+    },
+    rejectionReason: {
+      type: String,
+      default: '',
+    },
+    favoriteUsers: {
+      type: [Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
     },
     status: {
       type: String,
@@ -127,5 +204,6 @@ userSchema.statics.isPasswordMatched = async function (
 };
 
 userSchema.index({ email: 1, role: 1 }, { unique: true });
+userSchema.index({ location: '2dsphere' });
 
 export const User = model<TUser, UserModel>('User', userSchema);

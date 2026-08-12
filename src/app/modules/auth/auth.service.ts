@@ -32,6 +32,21 @@ const login = async (payload: TLogin) => {
     throw new AppError(httpStatus.BAD_REQUEST, 'Password does not match');
   }
 
+  // if (user.role === 'provider' && user.approvalStatus !== 'approved') {
+  //   if (user.approvalStatus === 'rejected') {
+  //     throw new AppError(
+  //       httpStatus.FORBIDDEN,
+  //       user.rejectionReason
+  //         ? `Your provider account was rejected: ${user.rejectionReason}`
+  //         : 'Your provider account was rejected by admin',
+  //     );
+  //   }
+  //   throw new AppError(
+  //     httpStatus.FORBIDDEN,
+  //     'Your provider account is pending admin approval',
+  //   );
+  // }
+
   const jwtPayload: {
     userId: string;
     role: string;
