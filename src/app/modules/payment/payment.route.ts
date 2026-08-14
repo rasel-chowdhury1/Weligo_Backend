@@ -8,6 +8,10 @@ const router = express.Router();
 // Datatrans-Signature header instead (verified inside paymentService.handlePaymentWebhook)
 router.post('/webhook', paymentController.handleWebhook);
 
+// Stripe posts here. No auth middleware - it's authenticated by the
+// Stripe-Signature header instead (verified inside paymentService.handleStripeWebhookEvent)
+router.post('/stripe/webhook', paymentController.handleStripeWebhook);
+
 router.get('/:paymentId', /* auth('admin', 'provider'), */ paymentController.getPayment);
 
 router.get(

@@ -86,7 +86,7 @@ const BookingSchema = new Schema<TBooking, BookingModel>(
 
     ageGroup: {
       type: String,
-      enum: AGE_GROUPS,
+      // enum: AGE_GROUPS,
       required: true,
     },
 

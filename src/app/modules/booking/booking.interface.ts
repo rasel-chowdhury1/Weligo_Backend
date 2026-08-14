@@ -4,8 +4,14 @@ import { WEEK_DAYS } from '../availability/availability.interface';
 // adjust this import path to wherever WEEK_DAYS actually lives in your project
 export type TWeekDay = (typeof WEEK_DAYS)[number];
 
-export const PAYMENT_METHODS = ['twint', 'card'] as const;
+// 'twint' kept for backward compatibility with historical bookings/payments
+// and Datatrans rollback - it's not one of the active methods below.
+export const PAYMENT_METHODS = ['twint', 'card', 'apple_pay'] as const;
 export type TPaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+// methods new bookings may actually select. Both route to Stripe - see
+// getPaymentStrategy() in payment.service.ts.
+export const ACTIVE_PAYMENT_METHODS = ['card', 'apple_pay'] as const;
 
 export const BOOKING_STATUSES = [
   'pending',

@@ -33,6 +33,14 @@ export type TPayment = {
   transactionId?: string; // charge id returned by the gateway
   gatewayReference?: string; // twint/card reference used for reconciliation
 
+  // Stripe-specific identifiers - only populated for Stripe-routed payments.
+  // transactionId holds the Checkout Session id immediately after authorize();
+  // Checkout doesn't create/attach a PaymentIntent until the customer actually
+  // submits payment details, so stripePaymentIntentId is only filled in once
+  // the webhook reports it (see linkStripeCheckoutSession in payment.service.ts).
+  stripeCheckoutSessionId?: string;
+  stripePaymentIntentId?: string;
+
   authorizedAt?: Date; // when the hold was placed
   capturedAt?: Date; // when the held funds were actually charged
 

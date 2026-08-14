@@ -65,6 +65,14 @@ const PaymentSchema = new Schema<TPayment, PaymentModel>(
       type: String,
     },
 
+    stripeCheckoutSessionId: {
+      type: String,
+    },
+
+    stripePaymentIntentId: {
+      type: String,
+    },
+
     authorizedAt: {
       type: Date,
     },

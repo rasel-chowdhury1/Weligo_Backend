@@ -35,6 +35,27 @@ const handleWebhook = catchAsync(async (req: Request, res: Response) => {
   res.sendStatus(httpStatus.OK);
 });
 
+const handleStripeWebhook = catchAsync(async (req: Request, res: Response) => {
+  const signatureHeader = req.header('stripe-signature') as string;
+
+  // rawBody is attached in app.ts via express.json({ verify }) - same
+  // mechanism the Datatrans webhook above relies on. Stripe's signature
+  // verification needs the exact original bytes, not a re-serialized req.body.
+  const rawBodyBuffer = (req as Request & { rawBody?: Buffer }).rawBody;
+
+  if (!rawBodyBuffer) {
+    throw new AppError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      'req.rawBody is missing - check that express.json({ verify }) is registered in app.ts before any routes'
+    );
+  }
+
+  await paymentService.handleStripeWebhookEvent(rawBodyBuffer, signatureHeader);
+
+  // Stripe just needs a 2xx to stop retrying - no response body required
+  res.sendStatus(httpStatus.OK);
+});
+
 const getPayment = catchAsync(async (req: Request, res: Response) => {
   const result = await paymentService.getPaymentByIdFromDB(req.params.paymentId);
 
@@ -72,6 +93,7 @@ const refundPayment = catchAsync(async (req: Request, res: Response) => {
 
 export const paymentController = {
   handleWebhook,
+  handleStripeWebhook,
   getPayment,
   getPaymentByBooking,
   refundPayment,

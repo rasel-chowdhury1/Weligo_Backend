@@ -555,7 +555,7 @@ const getProviderDetails = async (id: string) => {
       // Confirmed bookings
       Booking.find({
         serviceProvider: provider._id,
-        status: 'confirmed',
+        status: { $in: ['pending', 'confirmed'] },
         bookingDate: {
           $gte: new Date(),
         },
