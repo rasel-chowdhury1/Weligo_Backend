@@ -142,6 +142,9 @@ const resendOtpEmail = async ({ token }: { token: string }) => {
   });
 };
 
+
+
+
 export const otpServices = {
   createOtp,
   checkOtpByEmail,
