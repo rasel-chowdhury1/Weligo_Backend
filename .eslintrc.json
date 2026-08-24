@@ -1,6 +1,7 @@
 {
     "env": {
       "browser": true,
+      "node": true,
       "es2021": true
     },
     "extends": [
@@ -15,7 +16,7 @@
     },
     "plugins": ["@typescript-eslint"],
     "rules": {
-      "no-unused-vars": "error",
+      "@typescript-eslint/no-unused-vars": "error",
       "no-unused-expressions": "error",
       "prefer-const": "error",
       "no-console": "warn",

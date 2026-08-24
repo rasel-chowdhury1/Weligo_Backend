@@ -421,6 +421,20 @@ const getAllFamilies = async (query: Record<string, unknown>) => {
   return { meta, result };
 };
 
+const getAllProviders = async (query: Record<string, unknown>) => {
+  const userQuery = new QueryBuilder(User.find({ role: 'provider' }), query)
+    .search(['fullName', 'email'])
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const result = await userQuery.modelQuery;
+  const meta = await userQuery.countTotal();
+  return { meta, result };
+};
+
+
 const getAllUserCount = async () => {
   const allUserCount = await User.countDocuments();
   return allUserCount;
@@ -709,10 +723,11 @@ const removeFavoriteUser = async (userId: string, favoriteUserId: string) => {
 };
 
 const getMyFavoriteUsers = async (userId: string) => {
-  const result = await User.findById(userId).populate(
-    'favoriteUsers',
-    'fullName profileImage role averageRating totalReview categoryId',
-  );
+  const result = await User.findById(userId).populate({
+    path: 'favoriteUsers',
+    select: 'fullName profileImage role averageRating totalReview address hourlyRate categoryId',
+    populate: { path: 'categoryId', select: 'name' },
+  });
 
   if (!result) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
@@ -795,6 +810,7 @@ const getTopRatedProviders = async (query: Record<string, unknown>) => {
 export interface SearchProvidersQuery {
   categoryId?: string;
   address?: string;
+  searchTerm?: string; // matches provider fullName or email
   date?: string; // "YYYY-MM-DD"
   time?: string; // "HH:mm"
   sortBy?: 'nearest' | 'top_rated' | 'price_low' | 'price_high';
@@ -808,6 +824,7 @@ const searchProviders = async (query: SearchProvidersQuery) => {
   const {
     categoryId,
     address,
+    searchTerm,
     date,
     time,
     sortBy,
@@ -828,12 +845,31 @@ const searchProviders = async (query: SearchProvidersQuery) => {
     matchStage.categoryId = new Types.ObjectId(categoryId);
   }
 
+  // address and searchTerm each need their own $or, so combine them under
+  // $and instead of overwriting matchStage.$or when both are supplied
+  const andConditions: Record<string, any>[] = [];
+
   if (address) {
-    matchStage.$or = [
-      { address: { $regex: address, $options: 'i' } },
-      { city: { $regex: address, $options: 'i' } },
-      { postalCode: { $regex: address, $options: 'i' } },
-    ];
+    andConditions.push({
+      $or: [
+        { address: { $regex: address, $options: 'i' } },
+        { city: { $regex: address, $options: 'i' } },
+        { postalCode: { $regex: address, $options: 'i' } },
+      ],
+    });
+  }
+
+  if (searchTerm) {
+    andConditions.push({
+      $or: [
+        { fullName: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } },
+      ],
+    });
+  }
+
+  if (andConditions.length) {
+    matchStage.$and = andConditions;
   }
 
   const pipeline: Record<string, any>[] = [];
@@ -927,6 +963,7 @@ const searchProviders = async (query: SearchProvidersQuery) => {
             firstName: 1,
             lastName: 1,
             fullName: 1,
+            email: 1,
             profileImage: 1,
             role: 1,
             category: 1,
@@ -1018,11 +1055,11 @@ const blockedUser = async (id: string) => {
   // } else {
   //   status = true;
   // }
-  let status = 'banned'; 
+const status = singleUser.status === 'blocked' ? 'active' : 'blocked';
   console.log('status', status);
   const user = await User.findByIdAndUpdate(
     id,
-    { isBlocked: status },
+    { status },
     { new: true },
   );
 
@@ -1055,6 +1092,7 @@ export const userService = {
   approveProvider,
   rejectProvider,
   getAllUserQuery,
+  getAllProviders,
   getAllFamilies,
   getAllUserCount,
   getUsersOverview,

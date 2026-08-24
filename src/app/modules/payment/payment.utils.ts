@@ -26,7 +26,7 @@ export const formatCurrency = (amount: number, currency: string): string => {
 };
 
 // prefix lets you tell at a glance which flow a reference came from,
-// e.g. TWINT-..., CARD-..., RFD-... for refunds
+// e.g. CARD-..., RFD-... for refunds
 export const generateTransactionReference = (prefix = 'TXN'): string => {
   const randomPart = crypto.randomBytes(6).toString('hex').toUpperCase();
   return `${prefix}-${Date.now()}-${randomPart}`;

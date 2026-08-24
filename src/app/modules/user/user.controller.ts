@@ -87,6 +87,18 @@ const getAllFamilies = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAllProviders = catchAsync(async (req: Request, res: Response) => {
+  const result = await userService.getAllProviders(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    meta: result.meta,
+    data: result.result,
+    message: 'Providers fetched successfully',
+  });
+});
+
 const getUserById = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.getUserById(req.params.id);
   sendResponse(res, {
@@ -350,6 +362,7 @@ export const userController = {
   blockedUser,
   deleteMyAccount,
   getAllUsers,
+  getAllProviders,
   getAllFamilies,
   getAllUsersOverview,
   addFavoriteUser,

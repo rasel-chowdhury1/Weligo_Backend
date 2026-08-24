@@ -1,6 +1,7 @@
 import express from 'express';
 import { paymentController } from './payment.controller';
-// import auth from '../../middlewares/auth'; // wire up your real auth middleware here
+import auth from '../../middleware/auth';
+import { USER_ROLE } from '../user/user.constants';
 
 const router = express.Router();
 
@@ -11,6 +12,12 @@ router.post('/webhook', paymentController.handleWebhook);
 // Stripe posts here. No auth middleware - it's authenticated by the
 // Stripe-Signature header instead (verified inside paymentService.handleStripeWebhookEvent)
 router.post('/stripe/webhook', paymentController.handleStripeWebhook);
+
+// family/provider "my transactions" and admin "all transactions" must come
+// before /:paymentId, otherwise Express would match "my"/"" as a paymentId
+router.get('/my', auth(USER_ROLE.FAMILY, USER_ROLE.PROVIDER), paymentController.getMyTransactions);
+
+router.get('/', auth(USER_ROLE.ADMIN), paymentController.getAllTransactions);
 
 router.get('/:paymentId', /* auth('admin', 'provider'), */ paymentController.getPayment);
 

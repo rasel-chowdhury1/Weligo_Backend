@@ -28,6 +28,12 @@ export default {
   jwt_refresh_expires_in: process.env.JWT_REFRESH_EXPIRES_IN,
   nodemailer_host_email: process.env.NODEMAILER_HOST_EMAIL,
   nodemailer_host_pass: process.env.NODEMAILER_HOST_PASS,
+
+  admin_email: process.env.ADMIN_EMAIL,
+  admin_password: process.env.ADMIN_PASSWORD,
+  admin_phone: process.env.ADMIN_PHONE,
+
+
   twilio_account_sid: process.env.TWILIO_ACCOUNT_SID,
   twilio_auth_token: process.env.TWILIO_AUTH_TOKEN,
   twilio_phone_number: process.env.TWILIO_PHONE_NUMBER,

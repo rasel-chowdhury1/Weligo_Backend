@@ -3,6 +3,7 @@ import { authControllers } from './auth.controller';
 import auth from '../../middleware/auth';
 import validateRequest from '../../middleware/validateRequest';
 import { authValidation } from './auth.validation';
+import { USER_ROLE } from '../user/user.constants';
 
 export const authRoutes = Router();
 
@@ -27,7 +28,11 @@ authRoutes
 
   .patch(
     '/change-password',
-    auth('user',"admin"),
+    auth(
+      USER_ROLE.FAMILY,
+      USER_ROLE.PROVIDER,
+      USER_ROLE.ADMIN
+    ),
     authControllers.changePassword,
   )
 

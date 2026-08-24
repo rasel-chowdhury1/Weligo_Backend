@@ -78,6 +78,32 @@ const getPaymentByBooking = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMyTransactions = catchAsync(async (req: Request, res: Response) => {
+  const { userId, role } = req.user;
+
+  const result = await paymentService.getMyTransactionsFromDB(userId, role, req.query);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    meta: result.meta,
+    message: 'Transactions retrieved successfully',
+    data: result.result,
+  });
+});
+
+const getAllTransactions = catchAsync(async (req: Request, res: Response) => {
+  const result = await paymentService.getAllTransactionsFromDB(req.query);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    meta: result.meta,
+    message: 'Transactions retrieved successfully',
+    data: result.result,
+  });
+});
+
 const refundPayment = catchAsync(async (req: Request, res: Response) => {
   const { amount, reason } = req.body;
 
@@ -96,5 +122,7 @@ export const paymentController = {
   handleStripeWebhook,
   getPayment,
   getPaymentByBooking,
+  getMyTransactions,
+  getAllTransactions,
   refundPayment,
 };

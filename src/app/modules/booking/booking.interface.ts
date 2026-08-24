@@ -14,16 +14,18 @@ export type TWeekDay = (typeof WEEK_DAYS)[number];
  * PAYMENT METHODS
  * ============================================================
  *
- * 'twint' is kept for backward compatibility with historical
- * bookings/payments and Datatrans rollback.
+ * TWINT is not supported by this project and has been removed - card and
+ * Apple Pay (both via Stripe) are the only accepted payment methods.
  *
- * New bookings currently use:
- * - card
- * - apple_pay
+ * PAYMENT_METHODS is every method the schema accepts; ACTIVE_PAYMENT_METHODS
+ * is the subset new bookings may actually select (see the guard in
+ * payment.service.ts#authorizePaymentIntoDB). The two happen to be identical
+ * today - kept as separate constants so a method can be retired from new
+ * bookings again in the future (as TWINT was) without touching the schema
+ * enum, the same way ACTIVE_PAYMENT_METHODS was used previously.
  */
 
 export const PAYMENT_METHODS = [
-  'twint',
   'card',
   'apple_pay',
 ] as const;

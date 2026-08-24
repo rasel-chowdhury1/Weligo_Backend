@@ -2,9 +2,11 @@ import {  createServer, Server } from 'http';
 import mongoose from 'mongoose';
 import app from './app';
 import colors from 'colors'; // Ensure correct import
-import config from './app/config';
-import socketIO from "socket.io"
+
 import { initSocketIO } from './socketIo';
+import createDefaultAdmin from './app/modules/DB/createDefaultAdmin';
+import { logger } from './app/utils/logger';
+import config from './app/config';
 
 // Create a new HTTP server
 const socketServer = createServer();
@@ -14,15 +16,36 @@ let server: Server;
 
 async function main() {
   try {
-    // console.log('config.database_url', config.database_url);
-    // Connect to MongoDB
-    await mongoose.connect(config.database_url as string);
-    // await mongoose.connect(
-    //   'mongodb+srv://tiger:tiger@team-codecanyon.ffrshve.mongodb.net/pro-mentors?retryWrites=true&w=majority&appName=Team-CodeCanyon',
-    // );
 
-    // Start Express server
-    // server = app.listen(Number(config.port), config.ip as string, () => {
+    const dbStartTime = Date.now();
+    const loadingFrames = ["🌍", "🌎", "🌏"]; // Loader animation frames
+    let frameIndex = 0;
+
+    // Start the connecting animation
+    const loader = setInterval(() => {
+      process.stdout.write(
+        `\rMongoDB connecting ${loadingFrames[frameIndex]} Please wait 😢`,
+      );
+      frameIndex = (frameIndex + 1) % loadingFrames.length;
+    }, 300); // Update frame every 300ms
+
+
+    // console.log('config.database_url', config.database_url);
+
+
+    // Connect to MongoDB with a timeout
+    await mongoose.connect(config.database_url as string, {
+      connectTimeoutMS: 10000, // 10 seconds timeout
+    });
+
+    // Stop the connecting animation
+    clearInterval(loader);
+    logger.info(
+      `\r✅ Mongodb connected successfully in ${Date.now() - dbStartTime}ms`,
+    );
+
+    //create a defult admin
+    createDefaultAdmin();
 
     // Start HTTP server
     server = createServer(app);

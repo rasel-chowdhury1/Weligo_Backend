@@ -76,6 +76,12 @@ userRoutes
   )
 
   .get(
+    '/all-providers',
+    // auth(USER_ROLE.ADMIN),
+    userController.getAllProviders,
+  )
+
+  .get(
     '/pending-providers',
     // auth(USER_ROLE.ADMIN),
     userController.getPendingProviders,

@@ -1,26 +1,39 @@
-import mongoose, { FilterQuery } from 'mongoose';
+import mongoose, { FilterQuery, HydratedDocument } from 'mongoose';
 import httpStatus from 'http-status';
 import { Booking } from '../booking/booking.model';
 import { Payment } from './payment.model';
 import { TPaymentMethod, PAYMENT_METHODS, ACTIVE_PAYMENT_METHODS } from '../booking/booking.interface';
 import { calculateCommissionSplit } from '../booking/booking.utils';
 import { generateTransactionReference } from './payment.utils';
+import { User } from '../user/user.models';
+import QueryBuilder from '../../builder/QueryBuilder';
+// Only depends on booking-payment.service.ts (never booking.service.ts
+// directly) so this stays a one-way edge - see that file's own header
+// comment for the full dependency-graph rationale. confirmAuthorizationIntoDB
+// below calls maybeConfirmBooking so a Stripe authorization can't confirm a
+// booking without provider acceptance too.
+import { bookingPaymentService } from '../booking/booking-payment.service';
 import { IPaymentGatewayStrategy } from './gateways/gateway.interface';
-import { DatatransPaymentStrategy } from './gateways/datatrans/datatrans.gateway';
 import { verifyDatatransSignature } from './gateways/datatrans/datatrans.utils';
 import { StripePaymentStrategy } from './gateways/stripe/stripe.gateway';
 import {
   parseStripeWebhookEvent,
   retrieveStripePaymentIntent,
+  resolveStripePaymentMethodType,
   TNormalizedStripeWebhookEvent,
 } from './gateways/stripe/stripe.utils';
 import AppError from '../../error/AppError';
 import { TPayment } from './payment.interface';
 
 // ---- gateway strategy pattern -------------------------------------------
-// Active flow: card / apple_pay -> Stripe. Datatrans remains wired up for
-// twint and is kept as a rollback path - see ACTIVE_PAYMENT_METHODS in
-// booking.interface.ts, which is what actually keeps twint out of new bookings.
+// Active flow (and the only one reachable from authorizePaymentIntoDB, see
+// the ACTIVE_PAYMENT_METHODS guard there): card / apple_pay -> Stripe.
+// TWINT has been fully removed - it's no longer a valid TPaymentMethod value
+// at all (see PAYMENT_METHODS in booking.interface.ts), so there's nothing
+// left to route to Datatrans here. The Datatrans gateway files themselves
+// (gateways/datatrans/) are kept only for the webhook handler below
+// (handlePaymentWebhook) and as reference/rollback material - not part of
+// the active payment method selection.
 
 const getPaymentStrategy = (method: TPaymentMethod): IPaymentGatewayStrategy => {
   switch (method) {
@@ -28,10 +41,6 @@ const getPaymentStrategy = (method: TPaymentMethod): IPaymentGatewayStrategy => 
       return new StripePaymentStrategy('card');
     case 'apple_pay':
       return new StripePaymentStrategy('apple_pay');
-    case 'twint':
-      // not reachable from authorizePaymentIntoDB (ACTIVE_PAYMENT_METHODS
-      // guard below) - kept so existing/rolled-back twint payments still work.
-      return new DatatransPaymentStrategy(['TWI']);
     default:
       throw new AppError(httpStatus.BAD_REQUEST, `Unsupported payment method: ${method}`);
   }
@@ -175,25 +184,43 @@ const authorizePaymentIntoDB = async (bookingId: string, amount: number) => {
 
 /**
  * Called from the webhook once the gateway confirms the hold succeeded.
- * Flips payment to "authorized" and the booking to "confirmed" atomically -
- * the slot is secured even though no money has moved yet.
+ * Flips payment to "authorized" and links it to its booking - but does NOT
+ * unilaterally confirm the booking. Under the current booking lifecycle,
+ * confirmation requires BOTH provider acceptance and payment authorization
+ * (in either order), so this hands off to
+ * bookingPaymentService.maybeConfirmBooking, the single shared gate both
+ * this path and bookingService.acceptBookingIntoDB funnel through. That's
+ * what stops a Stripe authorization from bypassing provider acceptance -
+ * see maybeConfirmBooking's own comment for the full rationale.
+ *
+ * `resolvedPaymentMethod`, when supplied (Stripe only - see
+ * resolveStripePaymentMethodType), is the method Stripe actually processed
+ * the charge with, which corrects payment.paymentMethod to match reality -
+ * the client's pre-checkout pick is only an intent (e.g. a "card" checkout
+ * can complete via Apple Pay). maybeConfirmBooking copies this onto
+ * booking.paymentMethod too, once/if it actually confirms.
+ * Datatrans's caller never passes this, so its behavior is unchanged.
  */
 const confirmAuthorizationIntoDB = async (
   paymentFilter: FilterQuery<TPayment>,
-  gatewayPayload: Record<string, unknown>
+  gatewayPayload: Record<string, unknown>,
+  resolvedPaymentMethod?: TPaymentMethod | null
 ) => {
   const session = await mongoose.startSession();
+  let payment: HydratedDocument<TPayment> | null = null;
 
   try {
     session.startTransaction();
 
-    const payment = await Payment.findOne(paymentFilter).session(session);
+    payment = await Payment.findOne(paymentFilter).session(session);
 
     if (!payment) {
       throw new AppError(httpStatus.NOT_FOUND, 'Payment not found for this transaction');
     }
 
-    // webhook retried after success - don't reprocess
+    // webhook retried after success - don't reprocess. Booking confirmation
+    // (if it hasn't happened yet) is driven by acceptBookingIntoDB /
+    // maybeConfirmBooking independently, so there's nothing more to do here.
     if (payment.paymentStatus === 'authorized') {
       await session.commitTransaction();
       session.endSession();
@@ -203,11 +230,16 @@ const confirmAuthorizationIntoDB = async (
     payment.paymentStatus = 'authorized';
     payment.authorizedAt = new Date();
     payment.gatewayResponse = gatewayPayload;
+
+    if (resolvedPaymentMethod && resolvedPaymentMethod !== payment.paymentMethod) {
+      payment.paymentMethod = resolvedPaymentMethod;
+    }
+
     await payment.save({ session });
 
     const booking = await Booking.findByIdAndUpdate(
       payment.booking,
-      { status: 'confirmed', payment: payment._id },
+      { payment: payment._id },
       { new: true, session }
     );
 
@@ -217,13 +249,15 @@ const confirmAuthorizationIntoDB = async (
 
     await session.commitTransaction();
     session.endSession();
-
-    return payment;
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
     throw error;
   }
+
+  await bookingPaymentService.maybeConfirmBooking(payment.booking.toString(), { role: 'system' });
+
+  return payment;
 };
 
 /**
@@ -287,13 +321,20 @@ const confirmVoidIntoDB = async (
 
 /**
  * Charges a previously authorized hold. Called from
- * bookingService.completeBookingIntoDB once the service is delivered.
+ * bookingService.confirmCompletionIntoDB once the family confirms completion.
+ * Idempotent: a payment that's already captured is returned as-is rather
+ * than re-captured or rejected, so a retried/duplicate completion request
+ * never double-charges or errors.
  */
 const capturePaymentIntoDB = async (paymentId: string) => {
   const payment = await Payment.findById(paymentId);
 
   if (!payment) {
     throw new AppError(httpStatus.NOT_FOUND, 'Payment not found');
+  }
+
+  if (payment.paymentStatus === 'captured') {
+    return payment;
   }
 
   if (payment.paymentStatus !== 'authorized') {
@@ -482,7 +523,11 @@ const handleCheckoutSessionCompleted = async (
 
   switch (paymentIntent.status) {
     case 'requires_capture':
-      return confirmAuthorizationIntoDB(paymentFilter, payload);
+      return confirmAuthorizationIntoDB(
+        paymentFilter,
+        payload,
+        resolveStripePaymentMethodType(paymentIntent)
+      );
     case 'succeeded':
       return confirmCaptureIntoDB(paymentFilter, payload);
     case 'canceled':
@@ -517,9 +562,19 @@ const handleStripeWebhookEvent = async (rawBody: Buffer, signatureHeader: string
       return handleCheckoutSessionCompleted(paymentFilter, event);
 
     // fires when the PaymentIntent enters requires_capture - i.e. the hold
-    // succeeded. Equivalent to Datatrans' "authorized" status.
-    case 'payment_intent.amount_capturable_updated':
-      return confirmAuthorizationIntoDB(paymentFilter, event.payload);
+    // succeeded. Equivalent to Datatrans' "authorized" status. The raw
+    // webhook payload's payment_method field is just an unexpanded id, so
+    // re-retrieve with it expanded to resolve the real method used - same as
+    // handleCheckoutSessionCompleted, since event delivery order isn't
+    // guaranteed and this event can arrive on its own.
+    case 'payment_intent.amount_capturable_updated': {
+      const paymentIntent = await retrieveStripePaymentIntent(event.paymentIntentId as string);
+      return confirmAuthorizationIntoDB(
+        paymentFilter,
+        event.payload,
+        resolveStripePaymentMethodType(paymentIntent)
+      );
+    }
 
     // fires once a manual capture completes - reconciliation safety net,
     // capturePaymentIntoDB is the primary path that sets this.
@@ -591,6 +646,109 @@ const getPaymentByBookingFromDB = async (bookingId: string) => {
   return payment;
 };
 
+const transactionPopulate = [
+  { path: 'payer', select: 'fullName profileImage email phone' },
+  {
+    path: 'booking',
+    select: 'bookingReference serviceProvider customer bookingDate status',
+    populate: { path: 'serviceProvider', select: 'fullName profileImage email phone' },
+  },
+];
+
+/**
+ * Unified "my transactions" list for family and provider accounts - family
+ * users match directly on Payment.payer; providers have no direct field on
+ * Payment, so their booking ids are resolved first and matched via
+ * `booking: {$in: ...}`. Same role-branching shape as booking.service.ts's
+ * getMyBookings.
+ */
+const getMyTransactionsFromDB = async (
+  userId: string,
+  role: string,
+  query: Record<string, unknown>,
+) => {
+  const filter: Record<string, unknown> = {};
+
+  if (role === 'provider') {
+    const bookingIds = await Booking.find({ serviceProvider: userId }).distinct('_id');
+    filter.booking = { $in: bookingIds };
+  } else {
+    filter.payer = userId;
+  }
+
+  const transactionQuery = new QueryBuilder(Payment.find(filter), {
+    sort: '-createdAt',
+    ...query,
+  })
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const result = await transactionQuery.modelQuery.populate(transactionPopulate);
+  const meta = await transactionQuery.countTotal();
+
+  return { meta, result };
+};
+
+/**
+ * Admin-only "all transactions" list - no payer/provider scoping.
+ * `searchTerm` matches either side of the transaction (the payer, or the
+ * related booking's serviceProvider) by fullName/email - resolved the same
+ * two-step way as booking.service.ts's getAllBookingsFromDB, since neither
+ * is a direct regex-searchable field on Payment. Standard `paymentStatus`
+ * (exact match, e.g. ?paymentStatus=captured) and `from`/`to` (createdAt
+ * range) filters apply via the usual QueryBuilder.filter().
+ */
+const getAllTransactionsFromDB = async (query: Record<string, unknown>) => {
+  const { from, to, searchTerm, ...restQuery } = query as {
+    from?: string;
+    to?: string;
+    searchTerm?: string;
+  } & Record<string, unknown>;
+
+  const filter: Record<string, unknown> = {};
+
+  if (from || to) {
+    filter.createdAt = {
+      ...(from && { $gte: new Date(from) }),
+      ...(to && { $lte: new Date(to) }),
+    };
+  }
+
+  if (searchTerm) {
+    const matchedUserIds = await User.find({
+      $or: [
+        { fullName: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } },
+      ],
+    }).distinct('_id');
+
+    const matchedBookingIds = await Booking.find({
+      serviceProvider: { $in: matchedUserIds },
+    }).distinct('_id');
+
+    filter.$or = [
+      { payer: { $in: matchedUserIds } },
+      { booking: { $in: matchedBookingIds } },
+    ];
+  }
+
+  const transactionQuery = new QueryBuilder(Payment.find(filter), {
+    sort: '-createdAt',
+    ...restQuery,
+  })
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const result = await transactionQuery.modelQuery.populate(transactionPopulate);
+  const meta = await transactionQuery.countTotal();
+
+  return { meta, result };
+};
+
 export const paymentService = {
   authorizePaymentIntoDB,
   confirmAuthorizationIntoDB,
@@ -602,4 +760,6 @@ export const paymentService = {
   refundPaymentFromDB,
   getPaymentByIdFromDB,
   getPaymentByBookingFromDB,
+  getMyTransactionsFromDB,
+  getAllTransactionsFromDB,
 };

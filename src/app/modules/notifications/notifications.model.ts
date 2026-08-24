@@ -25,7 +25,12 @@ const NotificationSchema = new Schema<INotification>(
     },
     type: {
       type: String,
-      enum: ["interested", "notInterested","SendFollow", "AcceptFollow", "DeclineFollow", "Accepted", "Rejected", "added"],
+      enum: [
+        "interested", "notInterested", "SendFollow", "AcceptFollow", "DeclineFollow", "Accepted", "Rejected", "added",
+        // booking lifecycle notifications
+        "BookingAccepted", "BookingDeclined", "BookingWithdrawn", "BookingConfirmed", "BookingCancelled",
+        "BookingRescheduled", "JobStarted", "JobMarkedDone", "BookingCompleted", "PaymentReleased",
+      ],
       required: true,
     },
     isRead: {

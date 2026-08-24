@@ -10,11 +10,12 @@ import {
 // ---- Datatrans client ----------------------------------------------------
 // docs: https://docs.datatrans.ch  |  api reference: https://api-reference.datatrans.ch
 //
-// Kept intact for reference/rollback - the active flow now routes card and
-// apple_pay to Stripe (see ../stripe/stripe.gateway.ts). Datatrans still
-// backs the 'twint' method for anyone rolling back to it, it's just not
-// reachable from the current active payment methods (see
-// ACTIVE_PAYMENT_METHODS in booking.interface.ts).
+// Kept intact for reference/rollback only - the active flow routes card and
+// apple_pay to Stripe (see ../stripe/stripe.gateway.ts). TWINT has been
+// fully removed from this project (it's no longer a valid payment method at
+// all, see PAYMENT_METHODS in booking.interface.ts) and this gateway is not
+// invoked by anything - see the comment on getPaymentStrategy in
+// payment.service.ts.
 
 const DATATRANS_BASE_URL =
   process.env.DATATRANS_BASE_URL ?? 'https://api.sandbox.datatrans.com';

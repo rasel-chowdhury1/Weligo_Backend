@@ -14,7 +14,6 @@ export const PAYMENT_STATUSES = [
 ] as const;
 export type TPaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
-// CHF default since twint is a Swiss-only payment method
 export const CURRENCIES = ['CHF', 'EUR', 'USD'] as const;
 export type TCurrency = (typeof CURRENCIES)[number];
 
@@ -27,11 +26,11 @@ export type TPayment = {
   providerEarning: number; // amount - commissionAmount, what the provider receives
   currency: TCurrency;
 
-  paymentMethod: TPaymentMethod; // 'twint' | 'card'
+  paymentMethod: TPaymentMethod; // 'card' | 'apple_pay'
   paymentStatus: TPaymentStatus;
 
   transactionId?: string; // charge id returned by the gateway
-  gatewayReference?: string; // twint/card reference used for reconciliation
+  gatewayReference?: string; // internal reference used for reconciliation
 
   // Stripe-specific identifiers - only populated for Stripe-routed payments.
   // transactionId holds the Checkout Session id immediately after authorize();

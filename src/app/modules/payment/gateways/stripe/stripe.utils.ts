@@ -63,7 +63,7 @@ export const parseStripeWebhookEvent = (
 
   try {
     event = getStripeClient().webhooks.constructEvent(rawBody, signatureHeader, webhookSecret);
-  } catch (error) {
+  } catch {
     throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid Stripe webhook signature');
   }
 
@@ -102,13 +102,43 @@ export const parseStripeWebhookEvent = (
 // Used when checkout.session.completed reports a PaymentIntent for the first
 // time - checkout.session.completed alone doesn't guarantee the PaymentIntent
 // is capturable (capture_method: 'manual' can still leave it 'processing'),
-// so we read its real status back from Stripe rather than assuming.
+// so we read its real status back from Stripe rather than assuming. Also
+// expands payment_method so resolveStripePaymentMethodType (below) can tell
+// whether the charge actually went through as a card or an Apple Pay wallet.
 export const retrieveStripePaymentIntent = async (
   paymentIntentId: string
 ): Promise<Stripe.PaymentIntent> => {
   try {
-    return await getStripeClient().paymentIntents.retrieve(paymentIntentId);
-  } catch (error) {
+    return await getStripeClient().paymentIntents.retrieve(paymentIntentId, {
+      expand: ['payment_method'],
+    });
+  } catch {
     throw new AppError(httpStatus.BAD_GATEWAY, 'Failed to retrieve the Stripe PaymentIntent');
   }
+};
+
+// The client's pre-checkout paymentMethod pick ('card' vs 'apple_pay') is
+// only an intent - Stripe Checkout can complete a "card" flow via the Apple
+// Pay wallet on an eligible device (see StripePaymentStrategy's class
+// comment: both use payment_method_types: ['card']). This inspects the
+// *actual* method Stripe processed the charge with, so the webhook can
+// correct payment.paymentMethod (and booking.paymentMethod) to match reality.
+// Requires the PaymentIntent to have been retrieved via
+// retrieveStripePaymentIntent above (payment_method expanded) - returns null
+// if it's still an unexpanded id string, or if Stripe used a method type
+// this app doesn't route (not 'card').
+export const resolveStripePaymentMethodType = (
+  paymentIntent: Stripe.PaymentIntent
+): 'card' | 'apple_pay' | null => {
+  const paymentMethod = paymentIntent.payment_method;
+
+  if (!paymentMethod || typeof paymentMethod === 'string') {
+    return null;
+  }
+
+  if (paymentMethod.type !== 'card') {
+    return null;
+  }
+
+  return paymentMethod.card?.wallet?.type === 'apple_pay' ? 'apple_pay' : 'card';
 };
