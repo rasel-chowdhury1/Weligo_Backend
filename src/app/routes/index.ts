@@ -15,7 +15,7 @@ import path from "path";
 import { bookingRoutes } from "../modules/booking/booking.route";
 import { paymentRoutes } from "../modules/payment/payment.route";
 import { reviewRoutes } from "../modules/reveiw/review.route";
-import { overviewRoutes } from "../modules/overview/overview.route";
+import { overviewRoutes, myOverviewRoutes } from "../modules/overview/overview.route";
 import { reportRoutes } from "../modules/report/report.route";
 
 
@@ -86,6 +86,10 @@ const moduleRoutes = [
   {
      path: "/admin/overview",
      route: overviewRoutes
+  },
+  {
+     path: "/overview",
+     route: myOverviewRoutes
   },
   {
     path: "/reports",

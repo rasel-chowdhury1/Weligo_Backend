@@ -42,8 +42,21 @@ const getEarningOverview = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMyOverview = catchAsync(async (req: Request, res: Response) => {
+  const { userId, role } = req.user;
+  const result = await overviewService.getMyOverview(userId, role, req.query);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Overview fetched successfully',
+    data: result,
+  });
+});
+
 export const overviewController = {
   getTotalOverview,
   getBookingOverview,
   getEarningOverview,
+  getMyOverview,
 };

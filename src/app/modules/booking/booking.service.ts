@@ -240,7 +240,6 @@ const getMyBookings = async (
   const roleFilter = isProvider
     ? { serviceProvider: userId }
     : { customer: userId };
-  const populateField = isProvider ? 'customer' : 'serviceProvider';
 
   const { status, ...restQuery } = query as {
     status?: TMyBookingStatusFilter;
@@ -292,9 +291,27 @@ const getMyBookings = async (
     .paginate()
     .fields();
 
-  const result = await bookingQuery.modelQuery
-    .populate(populateField, 'fullName profileImage email phone')
-    .populate('payment');
+  // categoryId only exists on the provider side, so both roles need
+  // serviceProvider.categoryId nested-populated for the category name -
+  // for a provider viewing their own bookings that's a slim populate (just
+  // categoryId, they already know their own profile); for a family it rides
+  // along with the full serviceProvider profile.
+  const result = isProvider
+    ? await bookingQuery.modelQuery
+        .populate('customer', 'fullName profileImage email phone')
+        .populate({
+          path: 'serviceProvider',
+          select: 'categoryId',
+          populate: { path: 'categoryId', select: 'name' },
+        })
+        .populate('payment')
+    : await bookingQuery.modelQuery
+        .populate({
+          path: 'serviceProvider',
+          select: 'fullName profileImage email phone categoryId',
+          populate: { path: 'categoryId', select: 'name' },
+        })
+        .populate('payment');
   const meta = await bookingQuery.countTotal();
 
   return { meta, result };

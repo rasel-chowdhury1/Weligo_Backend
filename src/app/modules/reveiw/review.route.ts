@@ -23,6 +23,8 @@ reviewRoutes
 
   .get('/user/:userId', reviewController.getReviewsForUser)
 
+  .get('/booking/:bookingId', reviewController.getReviewsByBookingId)
+
   .get('/:id', reviewController.getReviewById)
 
   .patch(

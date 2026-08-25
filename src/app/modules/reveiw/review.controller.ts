@@ -31,7 +31,7 @@ const getReviewsForUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMyReviews = catchAsync(async (req: Request, res: Response) => {
-  const result = await reviewService.getReviewsForUser(
+  const result = await reviewService.getMyWrittenReviews(
     req.user.userId,
     req.query,
   );
@@ -42,6 +42,17 @@ const getMyReviews = catchAsync(async (req: Request, res: Response) => {
     meta: result.meta,
     message: 'Reviews fetched successfully',
     data: result.result,
+  });
+});
+
+const getReviewsByBookingId = catchAsync(async (req: Request, res: Response) => {
+  const result = await reviewService.getReviewsByBookingId(req.params.bookingId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Reviews fetched successfully',
+    data: result,
   });
 });
 
@@ -104,6 +115,7 @@ export const reviewController = {
   createReview,
   getReviewsForUser,
   getMyReviews,
+  getReviewsByBookingId,
   getReviewById,
   updateReview,
   deleteReview,

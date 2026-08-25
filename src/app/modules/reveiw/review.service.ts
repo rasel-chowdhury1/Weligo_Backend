@@ -44,11 +44,15 @@ const createReview = async (
 ) => {
   const { bookingId, rating, comment } = payload;
 
+  console.log({payload})
+
   const booking = await Booking.findById(bookingId);
 
   if (!booking) {
     throw new AppError(httpStatus.NOT_FOUND, 'Booking not found');
   }
+
+  console.log({booking})
 
   if (booking.status !== 'completed') {
     throw new AppError(
@@ -81,19 +85,28 @@ const createReview = async (
     );
   }
 
-  const review = await Review.create({
+  let review;
+  try {
+     review = await Review.create({
     bookingId,
     reviewerId,
     receiverId,
     rating,
     comment,
   });
+  } catch (error) {
+    console.log({error})
+  }
+
+
 
   await recalculateUserRating(receiverId);
 
   return review;
 };
 
+// Public profile view - reviews OTHERS wrote about this user (e.g. a
+// provider's public review list). Filters by receiverId.
 const getReviewsForUser = async (
   userId: string,
   query: Record<string, unknown>,
@@ -115,6 +128,44 @@ const getReviewsForUser = async (
   const meta = await reviewQuery.countTotal();
 
   return { meta, result };
+};
+
+// "My reviews" - reviews THIS user wrote (about the other party in each
+// booking), each with its embedded `reply` (e.g. the provider's reply to a
+// family's review of them). Filters by reviewerId - deliberately NOT the
+// same query as getReviewsForUser above, which answers a different question
+// ("what did others say about this user").
+const getMyWrittenReviews = async (
+  userId: string,
+  query: Record<string, unknown>,
+) => {
+  const reviewQuery = new QueryBuilder(
+    Review.find({ reviewerId: userId, isDeleted: false }),
+    query,
+  )
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const result = await reviewQuery.modelQuery.populate(
+    'receiverId',
+    'fullName profileImage',
+  );
+  const meta = await reviewQuery.countTotal();
+
+  return { meta, result };
+};
+
+// A booking can have up to two reviews (family -> provider and
+// provider -> family, enforced by the {bookingId, reviewerId} unique
+// index) - returns whichever of those exist for this booking.
+const getReviewsByBookingId = async (bookingId: string) => {
+  const reviews = await Review.find({ bookingId, isDeleted: false })
+    .populate('reviewerId', 'fullName profileImage')
+    .populate('receiverId', 'fullName profileImage');
+
+  return reviews;
 };
 
 const getReviewById = async (id: string) => {
@@ -214,6 +265,8 @@ const replyToReview = async (
 export const reviewService = {
   createReview,
   getReviewsForUser,
+  getMyWrittenReviews,
+  getReviewsByBookingId,
   getReviewById,
   updateReview,
   deleteReview,

@@ -701,10 +701,12 @@ const getMyTransactionsFromDB = async (
  * range) filters apply via the usual QueryBuilder.filter().
  */
 const getAllTransactionsFromDB = async (query: Record<string, unknown>) => {
-  const { from, to, searchTerm, ...restQuery } = query as {
+  const { from, to, searchTerm, paymentStatus, paymentMethod, ...restQuery } = query as {
     from?: string;
     to?: string;
     searchTerm?: string;
+    paymentStatus?: string;
+    paymentMethod?: string;
   } & Record<string, unknown>;
 
   const filter: Record<string, unknown> = {};
@@ -715,6 +717,9 @@ const getAllTransactionsFromDB = async (query: Record<string, unknown>) => {
       ...(to && { $lte: new Date(to) }),
     };
   }
+
+  if( paymentStatus) filter.paymentStatus = paymentStatus;
+  if(paymentMethod) filter.paymentMethod = paymentMethod;
 
   if (searchTerm) {
     const matchedUserIds = await User.find({
