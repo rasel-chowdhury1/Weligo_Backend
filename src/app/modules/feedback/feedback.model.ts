@@ -9,7 +9,7 @@ const feedbackSchema = new Schema<IFeedback>(
     adminVerified: {
       type: String,
       enum: ["pending", "verified", 'declined'],
-      default: "pending"
+      default: "verified"
     },
     isDeleted: { type: Boolean, default: false },
   },
