@@ -6,7 +6,6 @@ import catchAsync from '../../utils/catchAsync';
 import { IChat } from '../chat/chat.interface';
 import Chat from '../chat/chat.model';
 import AppError from '../../error/AppError';
-import { ChatService } from '../chat/chat.service';
 import { storeFiles } from '../../utils/fileHelper';
 
 const sendMessage = catchAsync(async (req: Request, res: Response) => {
@@ -117,24 +116,19 @@ const getMessagesForChat = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-
 const fileUpload = catchAsync(async (req: Request, res: Response) => {
+  let result: string[] | null = null;
 
-    let result;
-
-      if (req.files) {
+  if (req.files && Object.keys(req.files).length > 0) {
     try {
-      // Use storeFiles to process all uploaded files
       const filePaths = storeFiles(
         'chat',
         req.files as { [fieldName: string]: Express.Multer.File[] },
       );
 
-      // Set photos (multiple files)
       if (filePaths.images && filePaths.images.length > 0) {
-        result = filePaths.images; // Assign full array of photos
+        result = filePaths.images;
       }
-
     } catch (error: any) {
       console.error('Error processing files:', error.message);
       return sendResponse(res, {
@@ -144,14 +138,61 @@ const fileUpload = catchAsync(async (req: Request, res: Response) => {
         data: null,
       });
     }
+  } else {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'No files uploaded',
+      data: null,
+    });
   }
-  sendResponse(res, {
+
+  return sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message: 'file upload successfully',
+    message: 'File uploaded successfully',
     data: result,
   });
 });
+
+// const fileUpload = catchAsync(async (req: Request, res: Response) => {
+
+//     let result;
+
+//   if (req.files) {
+//     try {
+//       // Use storeFiles to process all uploaded files
+//       const filePaths = storeFiles(
+//         'chat',
+//         req.files as { [fieldName: string]: Express.Multer.File[] },
+//       );
+
+//       // Set photos (multiple files)
+//       if (filePaths.images && filePaths.images.length > 0) {
+//         result = filePaths.images; // Assign full array of photos
+//       }
+
+//       console.log("file path =>> ", filePaths);
+//       console.log("result =>>> ", result);
+
+//     } catch (error: any) {
+//       console.error('Error processing files:', error.message);
+//       return sendResponse(res, {
+//         statusCode: httpStatus.BAD_REQUEST,
+//         success: false,
+//         message: 'Failed to process uploaded files',
+//         data: null,
+//       });
+//     }
+//   }
+
+//   sendResponse(res, {
+//     statusCode: httpStatus.CREATED,
+//     success: true,
+//     message: 'file upload successfully',
+//     data: result,
+//   });
+// });
 
 
 const getAllPendingMessages = catchAsync(async (req: Request, res: Response) => {

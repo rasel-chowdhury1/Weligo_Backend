@@ -522,6 +522,10 @@ const getProviderDetails = async (id: string) => {
     .populate({
       path: 'providerProfileId',
     })
+    .populate({
+      path: 'categoryId',
+      select: 'name image',
+    })
     .lean();
 
   if (!provider) {

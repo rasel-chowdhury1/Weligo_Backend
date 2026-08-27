@@ -17,3 +17,27 @@ export const deleteFile = async (path: string) => {
 export const storeFile = (folderName: string, filename: string) => {
   return `/uploads/${folderName}/${filename}`;
 };
+
+// this is use for muiltiple fields file upload
+export const storeFiles = (
+  folderName: string,
+  files: { [fieldName: string]: Express.Multer.File[] }
+): { [fieldName: string]: string[] } => {
+  if (!folderName || !files) {
+    throw new Error('Both folderName and files are required.');
+  }
+
+  const sanitizedFolder = folderName.replace(/\/+$/, ''); // Remove trailing slashes
+  const result: { [fieldName: string]: string[] } = {};
+
+  // Use Object.entries to iterate over the files object
+  Object.entries(files).forEach(([fieldName, fileArray]) => {
+    // Map each file in the field to its generated path
+    result[fieldName] = fileArray.map((file) => {
+      const sanitizedFilename = file.filename.replace(/^\/+/, ''); // Remove leading slashes
+      return `/uploads/${sanitizedFolder}/${sanitizedFilename}`;
+    });
+  });
+
+  return result;
+};

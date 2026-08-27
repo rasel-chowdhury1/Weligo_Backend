@@ -132,7 +132,7 @@ const getMyChatList = async (userId: string, query: any) => {
 
   const chats = await Chat.find(filterQuery).populate({
     path: 'users',
-    select: 'name sureName profileImage email _id',
+    select: 'fullName sureName profileImage email _id',
     match: { _id: { $ne: userId } },
   });
 

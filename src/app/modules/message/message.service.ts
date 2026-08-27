@@ -6,7 +6,8 @@ import Chat from '../chat/chat.model';
 import { Types } from 'mongoose';
 import QueryBuilder from '../../builder/QueryBuilder';
 
-const sendMessage = async (data: any) => {
+const 
+sendMessage = async (data: any) => {
   console.log({data})
    // Check if text, chatId, and sender are provided
    if (!data.text || !data.chat || !data.sender) {
@@ -162,7 +163,7 @@ const getMessagesForChat = async (
 
   // Use QueryBuilder for pagination, sorting, filtering
   const messageQuery = new QueryBuilder(
-    Message.find({ chat: chatId }).populate("sender", "name profileImage"),
+    Message.find({ chat: chatId }).populate("sender", "fullName profileImage"),
     query
   )
     .sort() // will default to '-createdAt' if no sort param is passed
