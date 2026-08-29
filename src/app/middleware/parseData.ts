@@ -11,6 +11,10 @@ const parseData = () => {
     }
 
 
+    console.log("parse data =>>> ", req.body.data
+      
+    )
+
 
     next();
   });

@@ -593,6 +593,8 @@ console.log("socket user =>>>>>>>>>>> ", socket.user);
       // Either side ends a ringing or ongoing call
       socket.on('call:end', async (payload: { callId: string }, callback) => {
         const call = activeCalls.get(payload?.callId);
+
+        console.log("get call =>> ", call);
         if (!call) {
           return callbackFn(callback, { success: false, message: 'Call not found' });
         }
@@ -606,6 +608,8 @@ console.log("socket user =>>>>>>>>>>> ", socket.user);
 
         callbackFn(callback, { success: true });
       });
+
+      
       // ==================== WebRTC call signaling end ====================
 
       //----------------------chat list start------------------------//

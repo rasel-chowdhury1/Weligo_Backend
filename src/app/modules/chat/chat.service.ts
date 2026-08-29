@@ -41,7 +41,7 @@ const addNewChat = async (
   });
 
   if (existingChat) {
-    return;
+    return existingChat ;
   }
 
   // Create the chat in the database
