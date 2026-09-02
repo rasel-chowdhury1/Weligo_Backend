@@ -44,7 +44,7 @@ export class StripePaymentStrategy implements IPaymentGatewayStrategy {
   async authorize(input: TAuthorizePaymentInput): Promise<TAuthorizePaymentResult> {
     const stripe = getStripeClient();
     const amountInSmallestUnit = toSmallestCurrencyUnit(input.amount, input.currency);
-    const appBaseUrl = process.env.APP_BASE_URL;
+    const clientUrl = process.env.CLIENT_URL;
 
     try {
       const session = await stripe.checkout.sessions.create({
@@ -76,8 +76,8 @@ export class StripePaymentStrategy implements IPaymentGatewayStrategy {
           paymentId: input.paymentId ?? '',
           gatewayReference: input.reference,
         },
-        success_url: `${appBaseUrl}/payments/return?status=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appBaseUrl}/payments/return?status=cancel`,
+        success_url: `${clientUrl}/payment/success?status=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${clientUrl}/payment/cancel?status=cancel`,
       });
 
       if (!session.url) {
