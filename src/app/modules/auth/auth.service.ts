@@ -21,7 +21,11 @@ const twilioPhone = config.twilio_phone_number;
 const client = twilio(accountSid, authToken);
 // Login
 const login = async (payload: TLogin) => {
-  const user = await User.isUserActive(payload?.email);
+
+  const user = await User.findOne({
+    email: payload.email,
+    isDeleted: false
+  }).select('+password').populate("providerProfileId")
   
   
   if (!user) {

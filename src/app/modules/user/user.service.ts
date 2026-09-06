@@ -314,7 +314,13 @@ const updateUser = async (id: string, payload: Partial<TUser>) => {
 
 export interface CompleteProviderProfilePayload {
   profileImage?: string;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: Date | string;
   phone?: string;
+  city?: string;
+  postalCode?: string;
+  address?: string;
   referralSource?: string;
   categoryId?: string;
   hourlyRate?: number;
@@ -325,13 +331,16 @@ export interface CompleteProviderProfilePayload {
   longBioTitle?: string;
   longBio?: string;
   preferences?: Partial<TPreferences>;
-  certificates?: TCertificate[];
+  certificates?: Partial<TCertificate>[];
+  deleteCertificateIds?: string[];
 }
 
 const completeProviderProfile = async (
   userId: string,
   payload: CompleteProviderProfilePayload,
 ) => {
+
+  console.log("update =>>> ", {userId, payload})
   const user = await User.findById(userId);
 
   if (!user) {
@@ -347,7 +356,14 @@ const completeProviderProfile = async (
 
   const {
     profileImage,
+    firstName,
+    lastName,
+    fullName,
+    dateOfBirth,
     phone,
+    city,
+    postalCode,
+    address,
     referralSource,
     categoryId,
     hourlyRate,
@@ -359,6 +375,7 @@ const completeProviderProfile = async (
     longBio,
     preferences,
     certificates,
+    deleteCertificateIds,
   } = payload;
 
   let providerProfileId = user.providerProfileId;
@@ -374,12 +391,23 @@ const completeProviderProfile = async (
     longBioTitle,
     longBio,
     preferences,
-    newCertificates: certificates,
+    certificates,
+    deleteCertificateIds,
   });
 
+  // Explicit whitelist: email, password, role, approvalStatus, status,
+  // isDeleted, and providerProfileId (set above from server-side lookup)
+  // can never be touched by this payload, no matter what the client sends.
   const userUpdate: Partial<TUser> = { providerProfileId };
   if (profileImage !== undefined) userUpdate.profileImage = profileImage;
+  if (firstName !== undefined) userUpdate.firstName = firstName;
+  if (lastName !== undefined) userUpdate.lastName = lastName;
+  if (fullName !== undefined) userUpdate.fullName = fullName;
+  if (dateOfBirth !== undefined) userUpdate.dateOfBirth = dateOfBirth;
   if (phone !== undefined) userUpdate.phone = phone;
+  if (city !== undefined) userUpdate.city = city;
+  if (postalCode !== undefined) userUpdate.postalCode = postalCode;
+  if (address !== undefined) userUpdate.address = address;
   if (referralSource !== undefined) userUpdate.referralSource = referralSource;
   if (categoryId !== undefined) userUpdate.categoryId = categoryId;
   if (hourlyRate !== undefined) userUpdate.hourlyRate = hourlyRate;
@@ -674,7 +702,7 @@ const getAdminProfile = async (id: string) => {
 };
 
 const getMyProfile = async (id: string) => {
-  const result = await User.findById(id);
+  const result = await User.findById(id).populate("providerProfileId categoryId");
 
   if (!result) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');

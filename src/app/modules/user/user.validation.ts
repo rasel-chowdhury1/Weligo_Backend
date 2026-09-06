@@ -52,13 +52,23 @@ const preferencesZodSchema = z.object({
 });
 
 const certificateInputZodSchema = z.object({
-  type: z.string({ required_error: 'certificate type is required' }).min(1),
+  _id: z.string().optional(),
+  type: z.string().min(1).optional(),
   description: z.string().optional(),
+}).refine((certificate) => certificate._id || certificate.type, {
+  message: 'certificate type is required for a new certificate',
+  path: ['type'],
 });
 
 const completeProviderProfileZodSchema = z.object({
   body: z.object({
+    firstName: z.string().min(1).optional(),
+    lastName: z.string().min(1).optional(),
+    dateOfBirth: z.coerce.date().optional(),
     phone: z.string().optional(),
+    city: z.string().optional(),
+    postalCode: z.string().optional(),
+    address: z.string().optional(),
     referralSource: z.string().optional(),
     categoryId: z.string().optional(),
     hourlyRate: z.number().nonnegative().optional(),
@@ -70,6 +80,7 @@ const completeProviderProfileZodSchema = z.object({
     longBio: z.string().optional(),
     preferences: preferencesZodSchema.optional(),
     certificates: z.array(certificateInputZodSchema).optional(),
+    deleteCertificateIds: z.array(z.string()).optional(),
   }),
 });
 

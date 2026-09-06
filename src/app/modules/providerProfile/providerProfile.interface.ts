@@ -1,6 +1,7 @@
 import { Model } from 'mongoose';
 
 export type TCertificate = {
+  _id?: string;
   type: string;
   description: string;
   imgUrl: string;

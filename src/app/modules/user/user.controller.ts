@@ -197,16 +197,21 @@ const completeProviderProfile = catchAsync(async (req: Request, res: Response) =
     | undefined;
   const certificateFiles = files?.certificateFiles;
   const certificates = req.body.certificates as
-    | { type: string; description?: string }[]
+    | { _id?: string; type?: string; description?: string }[]
     | undefined;
 
   if (certificates?.length) {
-    req.body.certificates = certificates.map((certificate, index) => ({
-      ...certificate,
-      imgUrl: certificateFiles?.[index]
-        ? storeFile('certificates', certificateFiles[index].filename)
-        : '',
-    }));
+    // certificateFiles[i] (if present) is the new/replacement image for
+    // certificates[i]. When editing an existing certificate without
+    // re-uploading an image, omit imgUrl entirely so the service layer
+    // keeps the certificate's current image instead of clearing it.
+    req.body.certificates = certificates.map((certificate, index) => {
+      const file = certificateFiles?.[index];
+      return {
+        ...certificate,
+        ...(file ? { imgUrl: storeFile('certificates', file.filename) } : {}),
+      };
+    });
   }
 
   if (files?.image?.[0]) {
